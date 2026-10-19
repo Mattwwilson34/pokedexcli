@@ -1,0 +1,11 @@
+# Compiled binary
+/pokedexcli
+
+# Local run logs
+*.log
+
+# Go workspace / test artifacts
+go.work
+go.work.sum
+*.test
+*.out
