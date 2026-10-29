@@ -7,9 +7,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"pokedexcli/internal"
+	"time"
 )
 
-const baseUrl = "https://pokeapi.co/api/v2/location-area/"
+const baseUrl = "https://pokeapi.co/api/v2/location-area/?offset=0&limit=20"
 
 type cliCommand struct {
 	name        string
@@ -25,10 +27,13 @@ type locationState struct {
 type REPL struct {
 	commands      map[string]cliCommand
 	locationState locationState
+	cache         *internal.Cache
 }
 
 func newREPL() *REPL {
 	r := &REPL{}
+
+	r.cache = internal.NewCache(time.Second * 60)
 
 	r.commands = map[string]cliCommand{
 		"exit": {
@@ -79,6 +84,7 @@ func main() {
 		}
 
 		err := command.callback()
+		repl.cache.PrintCacheStats()
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -127,12 +133,7 @@ func (r *REPL) commandMapBack() error {
 	return r.showPage(r.locationState.previous)
 }
 
-func fetchLocations(pageURL *string) (Pagination[Location], error) {
-	url := baseUrl
-
-	if pageURL != nil {
-		url = *pageURL
-	}
+func fetchLocations(url string, cache *internal.Cache) (Pagination[Location], error) {
 
 	res, err := http.Get(url)
 	if err != nil {
@@ -148,6 +149,11 @@ func fetchLocations(pageURL *string) (Pagination[Location], error) {
 		return Pagination[Location]{}, fmt.Errorf("status %d: %s", res.StatusCode, body)
 	}
 
+	err = cache.Add(url, body)
+	if err != nil {
+		return Pagination[Location]{}, err
+	}
+
 	var page Pagination[Location]
 	if err := json.Unmarshal(body, &page); err != nil {
 		return Pagination[Location]{}, err
@@ -157,10 +163,28 @@ func fetchLocations(pageURL *string) (Pagination[Location], error) {
 }
 
 func (r *REPL) showPage(pageURL *string) error {
-	page, err := fetchLocations(pageURL)
-	if err != nil {
-		return err
+	url := baseUrl
+	if pageURL != nil {
+		url = *pageURL
 	}
+
+	var page Pagination[Location]
+	cachedPage, cachedPageExists := r.cache.Get(url)
+
+	if cachedPageExists {
+		if err := json.Unmarshal(cachedPage, &page); err != nil {
+			return err
+		}
+	}
+
+	if !cachedPageExists {
+		nonCachedPage, err := fetchLocations(url, r.cache)
+		if err != nil {
+			return err
+		}
+		page = nonCachedPage
+	}
+
 	r.locationState.next = page.Next
 	r.locationState.previous = page.Previous
 

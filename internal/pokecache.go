@@ -1,14 +1,17 @@
 package internal
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
 
 type Cache struct {
-	entriesMu sync.Mutex
-	entries   map[string]cacheEntry
-	interval  time.Duration
+	mu       sync.Mutex
+	entries  map[string]cacheEntry
+	interval time.Duration
+	hits     int
+	misses   int
 }
 
 type cacheEntry struct {
@@ -27,30 +30,46 @@ func (c *Cache) reapLoop() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		c.entriesMu.Lock()
+		c.mu.Lock()
 		for key, val := range c.entries {
 			age := time.Since(val.createdAt)
 			if age > c.interval {
 				delete(c.entries, key)
 			}
 		}
-		c.entriesMu.Unlock()
+		c.mu.Unlock()
 	}
 }
 
 func (c *Cache) Add(key string, val []byte) error {
-	c.entriesMu.Lock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.entries[key] = cacheEntry{createdAt: time.Now(), val: val}
-	c.entriesMu.Unlock()
 	return nil
 }
 
 func (c *Cache) Get(key string) ([]byte, bool) {
-	c.entriesMu.Lock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	entry, ok := c.entries[key]
-	c.entriesMu.Unlock()
 	if !ok {
+		c.misses += 1
 		return nil, false
 	}
+	c.hits += 1
 	return entry.val, true
+}
+
+func (c *Cache) PrintCacheStats() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	fmt.Println()
+	fmt.Printf("Number of Cache Entries: %v", len(c.entries))
+	fmt.Println()
+	fmt.Printf("Number of Cache Hits: %v", c.hits)
+	fmt.Println()
+	fmt.Printf("Number of Cache Misses: %v", c.misses)
+	fmt.Println()
+
+	return nil
 }
