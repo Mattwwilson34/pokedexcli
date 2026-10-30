@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"pokedexcli/internal"
+	"pokedexcli/internal/pokecache"
 	"time"
 )
 
@@ -27,13 +27,13 @@ type locationState struct {
 type REPL struct {
 	commands      map[string]cliCommand
 	locationState locationState
-	cache         *internal.Cache
+	cache         *pokecache.Cache
 }
 
 func newREPL() *REPL {
 	r := &REPL{}
 
-	r.cache = internal.NewCache(time.Second * 60)
+	r.cache = pokecache.NewCache(time.Second * 60)
 
 	r.commands = map[string]cliCommand{
 		"exit": {
@@ -133,7 +133,7 @@ func (r *REPL) commandMapBack() error {
 	return r.showPage(r.locationState.previous)
 }
 
-func fetchLocations(url string, cache *internal.Cache) (Pagination[Location], error) {
+func fetchLocations(url string, cache *pokecache.Cache) (Pagination[Location], error) {
 
 	res, err := http.Get(url)
 	if err != nil {
