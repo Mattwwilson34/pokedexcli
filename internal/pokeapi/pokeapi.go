@@ -6,12 +6,15 @@ import (
 	"io"
 	"net/http"
 	"pokedexcli/internal/pokecache"
+	"strings"
+	"text/tabwriter"
 )
 
 const (
-	BaseUrl           = "https://pokeapi.co/api/v2"
-	LocationAreasUrl  = BaseUrl + "/location-area/"
-	FirstLocationPage = LocationAreasUrl + "?offset=0&limit=20"
+	BaseURL           = "https://pokeapi.co/api/v2"
+	LocationAreasURL  = BaseURL + "/location-area/"
+	PokemonURL        = BaseURL + "/pokemon/"
+	FirstLocationPage = LocationAreasURL + "?offset=0&limit=20"
 )
 
 type Pagination[T any] struct {
@@ -37,7 +40,66 @@ type PokemonVersion struct {
 }
 
 type Pokemon struct {
-	Name string `json:"name"`
+	ID             int    `json:"id"`
+	Name           string `json:"name"`
+	BaseExperience int    `json:"base_experience"`
+	Height         int    `json:"height"`
+	IsDefault      bool   `json:"is_default"`
+	Order          int    `json:"order"`
+	Weight         int    `json:"weight"`
+}
+
+func (p Pokemon) String() string {
+	var b strings.Builder
+	w := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
+
+	fmt.Fprintf(w, "ID:\t%d\n", p.ID)
+	fmt.Fprintf(w, "Name:\t%s\n", p.Name)
+	fmt.Fprintf(w, "Base Experience:\t%d\n", p.BaseExperience)
+	fmt.Fprintf(w, "Height:\t%d\n", p.Height)
+	fmt.Fprintf(w, "Is Default:\t%t\n", p.IsDefault)
+	fmt.Fprintf(w, "Order:\t%d\n", p.Order)
+	fmt.Fprintf(w, "Weight:\t%d\n", p.Weight)
+
+	w.Flush()
+	return strings.TrimSuffix(b.String(), "\n")
+}
+
+func FetchPokemon(url string, cache *pokecache.Cache) (Pokemon, error) {
+	var pokemonData Pokemon
+
+	cachedPage, cachedPageExists := cache.Get(url)
+	if cachedPageExists {
+		if err := json.Unmarshal(cachedPage, &pokemonData); err != nil {
+			return Pokemon{}, err
+		}
+		return pokemonData, nil
+	}
+
+	// No Cached value found so we hit the api
+	res, err := http.Get(url)
+	if err != nil {
+		return Pokemon{}, err
+	}
+	defer func() { _ = res.Body.Close() }()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return Pokemon{}, err
+	}
+	if res.StatusCode > 299 {
+		return Pokemon{}, fmt.Errorf("status %d: %s", res.StatusCode, body)
+	}
+
+	err = cache.Add(url, body)
+	if err != nil {
+		return Pokemon{}, err
+	}
+
+	if err := json.Unmarshal(body, &pokemonData); err != nil {
+		return Pokemon{}, err
+	}
+	return pokemonData, nil
 }
 
 func FetchLocationArea(url string, cache *pokecache.Cache) (LocationArea, error) {

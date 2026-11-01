@@ -45,6 +45,11 @@ func commands() map[string]cliCommand {
 			description: "Displays the pokemon encounters for a location",
 			callback:    commandExplore,
 		},
+		"pokedex": {
+			name:        "show information on a pokemon",
+			description: "Displays the information for a pokemon",
+			callback:    commandPokedex,
+		},
 		"cache": {
 			name:        "print cache stats",
 			description: "Displays current cache state values",
@@ -124,7 +129,7 @@ func commandExplore(s *session, args []string) error {
 		return fmt.Errorf("must specify a location explore <location>")
 	}
 
-	currentLocationUrl := pokeapi.LocationAreasUrl + args[1]
+	currentLocationUrl := pokeapi.LocationAreasURL + args[1]
 	currentLocation, err := pokeapi.FetchLocationArea(currentLocationUrl, s.cache)
 	if err != nil {
 		return err
@@ -135,6 +140,25 @@ func commandExplore(s *session, args []string) error {
 	for _, pokemonVersion := range currentLocation.PokemonEncounters {
 		fmt.Println(pokemonVersion.Pokemon.Name)
 	}
+	fmt.Println()
+
+	return nil
+}
+
+func commandPokedex(s *session, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("must specify a pokemon")
+	}
+
+	pokemonURL := pokeapi.PokemonURL + args[1]
+	pokemon, err := pokeapi.FetchPokemon(pokemonURL, s.cache)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("\nPOKEMON")
+	fmt.Println("======================")
+	fmt.Println(pokemon.String())
 	fmt.Println()
 
 	return nil
