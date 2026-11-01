@@ -10,7 +10,7 @@ import (
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(s *session) error
+	callback    func(s *session, args []string) error
 }
 
 func commands() map[string]cliCommand {
@@ -40,6 +40,11 @@ func commands() map[string]cliCommand {
 			description: "Displays next location areas",
 			callback:    commandMapForward,
 		},
+		"explore": {
+			name:        "show location pokemon encounters",
+			description: "Displays the pokemon encounters for a location",
+			callback:    commandExplore,
+		},
 		"cache": {
 			name:        "print cache stats",
 			description: "Displays current cache state values",
@@ -49,13 +54,13 @@ func commands() map[string]cliCommand {
 
 }
 
-func commandExit(_ *session) error {
+func commandExit(_ *session, _ []string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp(_ *session) error {
+func commandHelp(_ *session, _ []string) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println()
@@ -67,7 +72,7 @@ func commandHelp(_ *session) error {
 	return nil
 }
 
-func commandMapBack(s *session) error {
+func commandMapBack(s *session, _ []string) error {
 	if s.userLocation.previous == "" {
 		return fmt.Errorf("you are on the first page")
 	}
@@ -85,7 +90,7 @@ func commandMapBack(s *session) error {
 	return nil
 }
 
-func commandMapCurrent(s *session) error {
+func commandMapCurrent(s *session, _ []string) error {
 	if s.userLocation.current == "" {
 		return fmt.Errorf("you have not navigated to any location yet")
 	}
@@ -99,8 +104,8 @@ func commandMapCurrent(s *session) error {
 	return nil
 }
 
-func commandMapForward(s *session) error {
-	nextUrl := cmp.Or(s.userLocation.next, pokeapi.LocationAreasUrl)
+func commandMapForward(s *session, _ []string) error {
+	nextUrl := cmp.Or(s.userLocation.next, pokeapi.FirstLocationPage)
 	locationAreasData, err := pokeapi.FetchLocationAreas(nextUrl, s.cache)
 	if err != nil {
 		return err
@@ -114,7 +119,28 @@ func commandMapForward(s *session) error {
 	return nil
 }
 
-func commandPrintCacheStats(s *session) error {
+func commandExplore(s *session, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("must specify a location explore <location>")
+	}
+
+	currentLocationUrl := pokeapi.LocationAreasUrl + args[1]
+	currentLocation, err := pokeapi.FetchLocationArea(currentLocationUrl, s.cache)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("\nPOKEMON")
+	fmt.Println("======================")
+	for _, pokemonVersion := range currentLocation.PokemonEncounters {
+		fmt.Println(pokemonVersion.Pokemon.Name)
+	}
+	fmt.Println()
+
+	return nil
+}
+
+func commandPrintCacheStats(s *session, _ []string) error {
 	err := s.cache.PrintCacheStats()
 	if err != nil {
 		return err
@@ -123,7 +149,7 @@ func commandPrintCacheStats(s *session) error {
 }
 
 func printLocationAreas(
-	data pokeapi.Pagination[pokeapi.LocationArea],
+	data pokeapi.Pagination[pokeapi.LocationAreas],
 	currentLocation string,
 ) {
 	fmt.Println()

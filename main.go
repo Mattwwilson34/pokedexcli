@@ -34,7 +34,7 @@ func main() {
 			continue
 		}
 
-		err := command.callback(session)
+		err := command.callback(session, cleanedInput)
 		if err != nil {
 			fmt.Println(err)
 		}
