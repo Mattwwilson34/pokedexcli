@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"os"
 	"pokedexcli/internal/pokecache"
+	"pokedexcli/internal/pokecatch"
 	"time"
 )
 
 func main() {
 
 	session := &session{
-		cache: pokecache.NewCache(time.Second * 60),
+		cache:           pokecache.NewCache(time.Second * 60),
+		pokemonCatchLog: pokecatch.NewPokemonCatchLog(),
 	}
 	commands := commands()
 

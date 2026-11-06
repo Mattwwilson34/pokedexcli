@@ -2,12 +2,14 @@ package main
 
 import (
 	"pokedexcli/internal/pokecache"
+	"pokedexcli/internal/pokecatch"
 	"strings"
 )
 
 type session struct {
-	userLocation userLocation
-	cache        *pokecache.Cache
+	userLocation    userLocation
+	pokemonCatchLog *pokecatch.Pokedex
+	cache           *pokecache.Cache
 }
 
 type userLocation struct {
