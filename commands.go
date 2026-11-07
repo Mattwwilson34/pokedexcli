@@ -47,6 +47,11 @@ func commands() map[string]cliCommand {
 			description: "Displays the pokemon encounters for a location",
 			callback:    commandExplore,
 		},
+		"inspect": {
+			name:        "show pokedex information on caught pokemon",
+			description: "Displays the pokedex informaiton for a caught pokemon",
+			callback:    commandInspect,
+		},
 		"pokedex": {
 			name:        "show information on a pokemon",
 			description: "Displays the information for a pokemon",
@@ -152,21 +157,31 @@ func commandExplore(s *session, args []string) error {
 	return nil
 }
 
-func commandPokedex(s *session, args []string) error {
+func commandPokedex(s *session, _ []string) error {
+	if len(s.pokedex.Entries) == 0 {
+		fmt.Println("you have not caught any pokemon")
+	}
+	for _, p := range s.pokedex.Entries {
+		fmt.Printf("- %s", p.Name)
+	}
+	return nil
+}
+
+func commandInspect(s *session, args []string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("must specify a pokemon")
 	}
 
-	pokemonURL := pokeapi.PokemonURL + args[1]
-	pokemon, err := pokeapi.FetchPokemon(pokemonURL, s.cache)
-	if err != nil {
-		return err
+	pokemonName := args[1]
+	pokedexEntry, ok := s.pokedex.Entries[pokemonName]
+	if !ok {
+		fmt.Println("you have not caught that pokemon")
+	} else {
+		fmt.Println("\nPOKEMON")
+		fmt.Println("======================")
+		fmt.Println(pokedexEntry.String())
+		fmt.Println()
 	}
-
-	fmt.Println("\nPOKEMON")
-	fmt.Println("======================")
-	fmt.Println(pokemon.String())
-	fmt.Println()
 
 	return nil
 }
@@ -179,7 +194,7 @@ func commandCatchPokemon(s *session, args []string) error {
 	defaultCatchRate := float32(0.25)
 	pokemonName := args[1]
 
-	pokemonLogEntry, ok := s.pokemonCatchLog.Entries[pokemonName]
+	pokedexEntry, ok := s.pokedex.Entries[pokemonName]
 	fmt.Printf("Throwing a Pokeball at %s...", pokemonName)
 	fmt.Println()
 
@@ -200,48 +215,56 @@ func commandCatchPokemon(s *session, args []string) error {
 			// Pokemon caught update log with catch rate set to default
 			fmt.Printf("%s was caught!", pokemonName)
 			fmt.Println()
-			newPokemonCatchLogEntry := pokecatch.PokedexEntry{
+			newPokedexEntry := pokecatch.PokedexEntry{
 				Name:                  pokemonName,
 				TotalCaught:           1,
 				BaseExperience:        pokemon.BaseExperience,
 				CatchDifficultyFactor: difficultyFactor,
 				CatchRate:             defaultCatchRate,
+				Stats:                 pokemon.Stats,
+				Types:                 pokemon.Types,
 			}
-			newPokemonCatchLogEntry.PrintLogEntry()
-			s.pokemonCatchLog.Entries[pokemonName] = newPokemonCatchLogEntry
+			s.pokedex.Entries[pokemonName] = newPokedexEntry
+			fmt.Println("#######################")
+			fmt.Println("   POKEDEX UPDATED")
+			fmt.Println("#######################")
+			fmt.Println(newPokedexEntry.String())
 		} else {
 			// Pokemon not caught increase likelyhood of catch for next attempt
 			fmt.Printf("%s escaped!", pokemonName)
 			fmt.Println()
-			updatePokemonCatchLogEntry := pokecatch.PokedexEntry{
+			updatedPokedexEntry := pokecatch.PokedexEntry{
 				Name:                  pokemonName,
 				TotalCaught:           0,
 				BaseExperience:        pokemon.BaseExperience,
 				CatchDifficultyFactor: difficultyFactor,
 				CatchRate:             modifiedCatchRate * defaultCatchRate,
+				Stats:                 pokemon.Stats,
+				Types:                 pokemon.Types,
 			}
-			s.pokemonCatchLog.Entries[pokemonName] = updatePokemonCatchLogEntry
-			updatePokemonCatchLogEntry.PrintLogEntry()
+			s.pokedex.Entries[pokemonName] = updatedPokedexEntry
 		}
 	} else {
 		// Pokemon log entry exists skip fetch and attempt catch
 		catchRoll := rand.Float32()
-		pokemonCaught := catchRoll < pokemonLogEntry.CatchRate
+		pokemonCaught := catchRoll < pokedexEntry.CatchRate
 		if pokemonCaught {
 			// Pokemon caught update log with catch rate set to default
 			fmt.Printf("%s was caught!", pokemonName)
 			fmt.Println()
-			pokemonLogEntry.TotalCaught++
-			pokemonLogEntry.CatchRate = defaultCatchRate
-			pokemonLogEntry.PrintLogEntry()
-			s.pokemonCatchLog.Entries[pokemonName] = pokemonLogEntry
+			pokedexEntry.TotalCaught++
+			pokedexEntry.CatchRate = defaultCatchRate
+			s.pokedex.Entries[pokemonName] = pokedexEntry
+			fmt.Println("#######################")
+			fmt.Println("   POKEDEX UPDATED")
+			fmt.Println("#######################")
+			fmt.Println(pokedexEntry.String())
 		} else {
 			// Pokemon not caught increase likelyhood of catch for next attempt
 			fmt.Printf("%s escaped!", pokemonName)
 			fmt.Println()
-			pokemonLogEntry.CatchRate += defaultCatchRate
-			s.pokemonCatchLog.Entries[pokemonName] = pokemonLogEntry
-			pokemonLogEntry.PrintLogEntry()
+			pokedexEntry.CatchRate += defaultCatchRate
+			s.pokedex.Entries[pokemonName] = pokedexEntry
 		}
 	}
 

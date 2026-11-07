@@ -7,9 +7,9 @@ import (
 )
 
 type session struct {
-	userLocation    userLocation
-	pokemonCatchLog *pokecatch.Pokedex
-	cache           *pokecache.Cache
+	userLocation userLocation
+	pokedex      *pokecatch.Pokedex
+	cache        *pokecache.Cache
 }
 
 type userLocation struct {

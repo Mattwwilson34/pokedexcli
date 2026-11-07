@@ -40,13 +40,34 @@ type PokemonVersion struct {
 }
 
 type Pokemon struct {
-	ID             int    `json:"id"`
-	Name           string `json:"name"`
-	BaseExperience int    `json:"base_experience"`
-	Height         int    `json:"height"`
-	IsDefault      bool   `json:"is_default"`
-	Order          int    `json:"order"`
-	Weight         int    `json:"weight"`
+	ID             int           `json:"id"`
+	Name           string        `json:"name"`
+	BaseExperience int           `json:"base_experience"`
+	Height         int           `json:"height"`
+	IsDefault      bool          `json:"is_default"`
+	Order          int           `json:"order"`
+	Weight         int           `json:"weight"`
+	Stats          []PokemonStat `json:"stats"`
+	Types          []PokemonType `json:"types"`
+}
+
+type PokemonType struct {
+	Slot int  `json:"slot"`
+	Type Type `json:"type"`
+}
+
+type Type struct {
+	Name string `json:"name"`
+}
+
+type PokemonStat struct {
+	Stat     Stat `json:"stat"`
+	Effort   int  `json:"effort"`
+	BaseStat int  `json:"base_stat"`
+}
+
+type Stat struct {
+	Name string `json:"name"`
 }
 
 func (p Pokemon) String() string {
@@ -60,6 +81,7 @@ func (p Pokemon) String() string {
 	fmt.Fprintf(w, "Is Default:\t%t\n", p.IsDefault)
 	fmt.Fprintf(w, "Order:\t%d\n", p.Order)
 	fmt.Fprintf(w, "Weight:\t%d\n", p.Weight)
+	fmt.Fprintf(w, "Stats:\t%d\n", p.Stats)
 
 	w.Flush()
 	return strings.TrimSuffix(b.String(), "\n")

@@ -12,8 +12,8 @@ import (
 func main() {
 
 	session := &session{
-		cache:           pokecache.NewCache(time.Second * 60),
-		pokemonCatchLog: pokecatch.NewPokemonCatchLog(),
+		cache:   pokecache.NewCache(time.Second * 60),
+		pokedex: pokecatch.NewPokedex(),
 	}
 	commands := commands()
 
